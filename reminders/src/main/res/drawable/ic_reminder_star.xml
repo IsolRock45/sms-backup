@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Star glyph. Drawn as a vector so it scales cleanly to whatever size
+    the OS asks for (status-bar small icon, lockscreen large icon, etc.).
+    The fill is plain white because Android tints all small icons to the
+    notification's accent color anyway — non-monochrome small icons get
+    rendered as solid white silhouettes on Android 5+, so a single-color
+    path is correct.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="?android:attr/colorControlNormal">
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M12,2L14.91,8.09L21.5,9.04L16.75,13.59L17.83,20.13L12,17.04L6.17,20.13L7.25,13.59L2.5,9.04L9.09,8.09L12,2Z" />
+</vector>
