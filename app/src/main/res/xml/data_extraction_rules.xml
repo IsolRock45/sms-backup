@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+ replacement for full-backup-content. Same intent: keep the
+     SMS database on-device. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="database" path="sms_backup.db" />
+        <exclude domain="database" path="sms_backup.db-journal" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="database" path="sms_backup.db" />
+        <exclude domain="database" path="sms_backup.db-journal" />
+    </device-transfer>
+</data-extraction-rules>
