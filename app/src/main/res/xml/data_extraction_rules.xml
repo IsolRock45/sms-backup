@@ -1,13 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Android 12+ replacement for full-backup-content. Same intent: keep the
-     SMS database on-device. -->
+     SMS database on-device. Room 2.6+ runs in WAL mode by default, so we
+     exclude the .db plus its WAL/SHM sidecars. <device-transfer> is *not*
+     covered by android:allowBackup="false", so it must be listed here too. -->
 <data-extraction-rules>
     <cloud-backup>
         <exclude domain="database" path="sms_backup.db" />
-        <exclude domain="database" path="sms_backup.db-journal" />
+        <exclude domain="database" path="sms_backup.db-wal" />
+        <exclude domain="database" path="sms_backup.db-shm" />
     </cloud-backup>
     <device-transfer>
         <exclude domain="database" path="sms_backup.db" />
-        <exclude domain="database" path="sms_backup.db-journal" />
+        <exclude domain="database" path="sms_backup.db-wal" />
+        <exclude domain="database" path="sms_backup.db-shm" />
     </device-transfer>
 </data-extraction-rules>

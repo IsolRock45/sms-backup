@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Disable auto backup of the SMS database. Backups belong on your private
-     server, not in Google's cloud. -->
+     server, not in Google's cloud. Room 2.6+ runs in WAL mode by default,
+     so we exclude the .db plus its WAL/SHM sidecars (NOT a .db-journal,
+     which is the rollback-journal mode and is not used here). -->
 <full-backup-content>
     <exclude domain="database" path="sms_backup.db" />
-    <exclude domain="database" path="sms_backup.db-journal" />
+    <exclude domain="database" path="sms_backup.db-wal" />
+    <exclude domain="database" path="sms_backup.db-shm" />
 </full-backup-content>
