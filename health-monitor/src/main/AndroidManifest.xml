@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!--
+        Foreground service of type "health" (Android 14+ requires the
+        type be declared on both the <service> and as a permission).
+    -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
+
+    <!-- Required to start the service from a BOOT_COMPLETED receiver. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- Posting the persistent notification on Android 13+. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!--
+        For real heart rate readings on a wearable device or external
+        sensor. Most phones don't have TYPE_HEART_RATE; this scaffold
+        falls back to a placeholder ticker so the architecture is
+        exercised end-to-end. _BACKGROUND is required to keep the
+        sensor alive when the app isn't in the foreground (Android 13+).
+    -->
+    <uses-permission android:name="android.permission.BODY_SENSORS" />
+    <uses-permission
+        android:name="android.permission.BODY_SENSORS_BACKGROUND"
+        tools:ignore="WrongConstraint" />
+
+    <application
+        android:name=".HealthMonitorApp"
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.HealthMonitor"
+        tools:targetApi="34">
+
+        <!--
+            Visible launcher activity. The user must be able to open the
+            app and see their data — that's the difference between a
+            personal health monitor and stalkerware. Do not remove the
+            MAIN/LAUNCHER intent filter.
+        -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:theme="@style/Theme.HealthMonitor">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+            Foreground service. android:foregroundServiceType="health" is
+            mandatory on Android 14+ for "continuous monitoring of the
+            user's vital signs" use cases — and the FOREGROUND_SERVICE_HEALTH
+            uses-permission must match.
+        -->
+        <service
+            android:name=".service.HealthMonitorService"
+            android:exported="false"
+            android:foregroundServiceType="health" />
+
+        <!--
+            Boot receiver. Note Android 10+: BOOT_COMPLETED is *not*
+            delivered until the user has launched the app at least once
+            after install (and the user can revoke it via Settings →
+            Apps → Special access → Run on startup on some OEMs).
+        -->
+        <receiver
+            android:name=".receiver.BootCompletedReceiver"
+            android:exported="true"
+            android:directBootAware="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
+
+    </application>
+
+</manifest>

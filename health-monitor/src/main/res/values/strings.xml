@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Health Monitor</string>
+    <string name="notif_title">Monitoring vitals</string>
+    <string name="notif_text">Tap to open. The service runs while this notification is shown.</string>
+</resources>
