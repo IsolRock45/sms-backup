@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Bell glyph in the safe foreground area. -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,28a14,14 0,0 1,14 14v8c0,8 4,14 8,18H32c4,-4 8,-10 8,-18v-8a14,14 0,0 1,14 -14zM48,82h12a6,6 0,0 1,-12 0z" />
+</vector>
