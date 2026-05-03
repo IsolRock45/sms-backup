@@ -22,3 +22,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "SMS Backup"
 include(":app")
+include(":health-monitor")
