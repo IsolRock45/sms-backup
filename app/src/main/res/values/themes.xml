@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!--
+        Compose-only app: Material3 theming is done in Theme.kt. The XML theme
+        only needs to provide a sane Activity theme (no ActionBar, transparent
+        status background) so the splash/initial frame doesn't flash.
+    -->
+    <style name="Theme.SMSBackup" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">?android:attr/colorBackground</item>
+        <item name="android:statusBarColor" tools:targetApi="21">@android:color/transparent</item>
+    </style>
+</resources>
