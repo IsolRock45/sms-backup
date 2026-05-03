@@ -3,8 +3,9 @@ name: Android CI
 on:
   push:
     branches: [main]
+  # Run for every PR regardless of base branch so stacked feature PRs
+  # (e.g. PR #2 → PR #1's branch → main) still get assemble + lint + tests.
   pull_request:
-    branches: [main]
 
 permissions:
   contents: read
