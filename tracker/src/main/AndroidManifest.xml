@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!--
+        POST_NOTIFICATIONS is only needed if *we* want to show notifications;
+        we don't, but capture-only listener apps still benefit from declaring
+        QUERY_ALL_PACKAGES on Android 11+ so PackageManager can resolve app
+        labels for the captured package names. This is a normal permission
+        for an app you only side-load on your own device, but Play Store
+        review would push back on it.
+    -->
+    <uses-permission
+        android:name="android.permission.QUERY_ALL_PACKAGES"
+        tools:ignore="QueryAllPackagesPermission" />
+
+    <application
+        android:name=".TrackerApp"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Tracker"
+        tools:targetApi="34">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Tracker">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+            NotificationListenerService.
+
+            - Must be exported so the system_server (different process) can
+              bind to us.
+            - The android.permission.BIND_NOTIFICATION_LISTENER_SERVICE
+              `android:permission` attribute means *only* a caller holding
+              that permission can bind. The system holds it; nobody else
+              should be able to.
+            - The intent-filter action is the contract the system uses to
+              discover listener services on the device.
+            - Notification access itself is granted by the user in
+              Settings → Notifications → Device & app notifications, NOT
+              by a runtime permission dialog. We open that screen from
+              MainActivity.
+        -->
+        <service
+            android:name=".service.NotificationCaptureService"
+            android:exported="true"
+            android:label="@string/service_label"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.notification.default_filter_types"
+                android:value="conversations|alerting" />
+            <meta-data
+                android:name="android.service.notification.disabled_filter_types"
+                android:value="ongoing|silent" />
+        </service>
+
+    </application>
+
+</manifest>
