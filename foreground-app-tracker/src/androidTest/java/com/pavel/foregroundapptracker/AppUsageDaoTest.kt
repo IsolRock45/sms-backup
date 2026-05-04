@@ -44,6 +44,32 @@ class AppUsageDaoTest {
     }
 
     @Test
+    fun updateEnd_patchesOpenSessionToClosed() = runBlocking {
+        val dao = db.appUsageDao()
+        // Simulate the "still open at sync boundary" state: a session inserted
+        // with endedAt=null and durationMillis=null, as UsageStatsSync emits.
+        dao.insertAll(listOf(session("com.x", startedAt = 1_000L, endedAt = null)))
+        val openRows = dao.openSessions()
+        assertEquals(1, openRows.size)
+        val open = openRows.single()
+        assertEquals(null, open.endedAt)
+        assertEquals(null, open.durationMillis)
+
+        // The next sync sees both RESUMED and PAUSED for the same session.
+        // Re-inserting via insertAll is dropped by IGNORE; updateEnd is the
+        // only correct path.
+        dao.updateEnd(open.id, endedAt = 5_000L, duration = 4_000L)
+
+        val recent = dao.observeRecent().first()
+        assertEquals(1, recent.size)
+        val patched = recent.single()
+        assertEquals(open.id, patched.id)
+        assertEquals(5_000L, patched.endedAt)
+        assertEquals(4_000L, patched.durationMillis)
+        assertEquals(emptyList<AppUsageSession>(), dao.openSessions())
+    }
+
+    @Test
     fun observeAggregates_sumsDurationsByPackage() = runBlocking {
         val dao = db.appUsageDao()
         dao.insertAll(

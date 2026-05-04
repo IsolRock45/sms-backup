@@ -7,7 +7,6 @@ import android.content.pm.PackageManager
 import android.util.Log
 import com.pavel.foregroundapptracker.data.AppUsageDao
 import com.pavel.foregroundapptracker.data.AppUsageSession
-import com.pavel.foregroundapptracker.data.TrackerDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.max
@@ -32,7 +31,11 @@ class UsageStatsSync(
     private val packageManager: PackageManager,
 ) {
 
-    /** Runs a sync over the given window. Returns the number of new rows inserted. */
+    /**
+     * Runs a sync over the given window. Returns the number of newly-inserted
+     * rows. Rows that close out previously-open sessions are patched in place
+     * (counted as `patched` in the log line) and don't add to the return.
+     */
     suspend fun sync(beginTimeMillis: Long, endTimeMillis: Long): Int = withContext(Dispatchers.IO) {
         val events = usm.queryEvents(beginTimeMillis, endTimeMillis)
         val open = HashMap<String, Long>()
@@ -74,14 +77,39 @@ class UsageStatsSync(
             )
         }
 
-        val rows = closed + stillOpen
-        if (rows.isEmpty()) {
+        if (closed.isEmpty() && stillOpen.isEmpty()) {
             Log.i(TAG, "sync($beginTimeMillis..$endTimeMillis) produced 0 sessions")
             return@withContext 0
         }
-        val insertedIds = dao.insertAll(rows)
+
+        // A session that was previously emitted as "open" (endedAt=null) and
+        // now has its closing event in the current window must be PATCHED,
+        // not re-inserted: insertAll uses IGNORE on the (packageName, startedAt)
+        // unique index, so naive re-insert would silently drop the closed
+        // version and the row would stay permanently open with null duration.
+        val existingOpen = dao.openSessions().associateBy { it.packageName to it.startedAt }
+        val toInsert = ArrayList<AppUsageSession>(closed.size + stillOpen.size)
+        var patched = 0
+        for (s in closed) {
+            val key = s.packageName to s.startedAt
+            val existing = existingOpen[key]
+            val endedAt = s.endedAt
+            val duration = s.durationMillis
+            if (existing != null && existing.endedAt == null && endedAt != null && duration != null) {
+                dao.updateEnd(existing.id, endedAt, duration)
+                patched++
+            } else {
+                toInsert += s
+            }
+        }
+        toInsert += stillOpen
+
+        val insertedIds = if (toInsert.isEmpty()) emptyList() else dao.insertAll(toInsert)
         val inserted = insertedIds.count { it >= 0 }
-        Log.i(TAG, "sync inserted $inserted/${rows.size} sessions in ${endTimeMillis - beginTimeMillis}ms window")
+        Log.i(
+            TAG,
+            "sync window=${endTimeMillis - beginTimeMillis}ms inserted=$inserted patched=$patched skipped=${toInsert.size - inserted}",
+        )
         inserted
     }
 
@@ -114,5 +142,4 @@ class UsageStatsSync(
     }
 }
 
-/** Convenience for the periodic worker — exposes the database from the app. */
-fun TrackerDatabase.dao(): AppUsageDao = appUsageDao()
+
