@@ -1,67 +1,83 @@
-# SMS Backup
+# Personal Trackers
 
-A minimal personal Android app that captures incoming SMS messages and stores
-them locally in a Room (SQLite) database. Intended as a backup of *your own*
+A multi-module Android Studio project hosting personal-use, on-device data
+capture tools. Each module is its own installable APK, but they share a
+single Gradle build, version catalog and CI workflow.
+
+## Modules
+
+### `:app` — SMS Backup
+
+A minimal personal app that captures incoming SMS messages and stores them
+locally in a Room (SQLite) database. Intended as a backup of *your own*
 incoming messages on *your own* device, before being synced to *your own*
 private server.
 
-## Features
-
 - `BroadcastReceiver` for `android.provider.Telephony.SMS_RECEIVED`
-- Extracts sender phone number, message body (multi-part messages joined), and
-  receive timestamp
-- Persists messages locally with Room (SQLite)
-- Runtime permission flow for `RECEIVE_SMS` and `READ_SMS`
-- Simple Jetpack Compose UI listing the most recent backed-up messages
+- Extracts sender phone number, message body (multi-part messages joined),
+  and receive timestamp
+- Persists messages locally with Room
+- Runtime permission flow for `RECEIVE_SMS` / `READ_SMS`
+- Compose UI listing the most recent backed-up messages
+
+### `:input-logger` — Own-App Input Logger
+
+A Compose-native equivalent of `TextWatcher`, scoped to fields in *this
+module's own UI* (not other apps). For local mobile-usability research
+where the subject is also the device owner.
+
+- `LoggedTextField(fieldId, value, onValueChange, label)` — drop-in
+  replacement for `OutlinedTextField` that emits `TEXT_CHANGED`,
+  `FOCUS_GAINED`, `FOCUS_LOST`, and `SUBMIT` events
+- `InputLogger` singleton routes events onto a service-scoped `Dispatchers.IO`
+  coroutine and persists them in a Room database (`input_logger.db`)
+- One `InputEvent` row per event with field id, event type, current text,
+  text length, and `charsDelta` (positive = insertion, negative = deletion)
+- No system-level permissions. No AccessibilityService. The `LoggedTextField`
+  wrapper is the *only* way for content to enter the table — plain
+  `TextField`s elsewhere in the app are not affected.
 
 ## Project layout
 
 ```
-app/
-  src/main/
-    AndroidManifest.xml
-    java/com/pavel/smsbackup/
-      MainActivity.kt           # Compose UI + runtime permission flow
-      SmsBackupApp.kt           # Application class, exposes the database
-      data/
-        SmsMessageEntity.kt     # @Entity row stored in SQLite
-        SmsMessageDao.kt        # Insert / query helpers
-        AppDatabase.kt          # Room database + singleton accessor
-      receiver/
-        SmsReceiver.kt          # BroadcastReceiver for SMS_RECEIVED
+app/                            # :app  — SMS Backup
+  src/main/java/com/pavel/smsbackup/
+    MainActivity.kt
+    SmsBackupApp.kt
+    data/{SmsMessageEntity,SmsMessageDao,AppDatabase}.kt
+    receiver/SmsReceiver.kt
+
+input-logger/                   # :input-logger  — Own-App Input Logger
+  src/main/java/com/pavel/inputlogger/
+    MainActivity.kt
+    InputLoggerApp.kt
+    InputLogger.kt              # singleton routing events to Room
+    LoggedTextField.kt          # Compose wrapper that emits events
+    data/{InputEvent,InputEventDao,InputDatabase}.kt
 ```
 
 ## Build
 
-Open the project in Android Studio (Hedgehog or newer), let Gradle sync, then
-*Run > app*.
-
-From the command line (requires the Android SDK and `local.properties` with
-`sdk.dir`):
-
 ```bash
-./gradlew :app:assembleDebug
-```
-
-Install onto a connected device or emulator:
-
-```bash
-./gradlew :app:installDebug
+./gradlew assembleDebug                       # all modules
+./gradlew :app:installDebug                   # SMS Backup
+./gradlew :input-logger:installDebug          # Input Logger
 ```
 
 ## Permissions
 
-The app requests `RECEIVE_SMS` (and `READ_SMS` so initial state can be read)
-at runtime. Both must be granted for the receiver to actually deliver new
-messages — Android silently drops `SMS_RECEIVED` broadcasts to apps without
-the permission.
+| Module           | Permission                          | How it's granted                                              |
+|------------------|-------------------------------------|---------------------------------------------------------------|
+| `:app`           | `RECEIVE_SMS`, `READ_SMS`           | Runtime dialog (`ActivityResultContracts`)                    |
+| `:input-logger`  | None                                | Logs only fields it owns inside its own UI                    |
 
 ## Privacy / scope
 
-The app only persists messages received *after* permission is granted, on the
-device it is installed on. Nothing is uploaded by this code. Sync to a private
-server is intentionally left out of this initial scaffold; add an outbound
-worker (e.g. `WorkManager` + Retrofit) and authenticate against your own
-endpoint when you are ready.
+Each module persists data captured on the device it is installed on.
+Nothing is uploaded by this code.
 
-Do not publish this app or use it to capture messages you do not own.
+`:input-logger` deliberately does NOT use AccessibilityService, IME, or any
+other system-wide capture mechanism. It logs only fields explicitly wrapped
+with `LoggedTextField` inside this module's own Activity — appropriate for
+self-experiments and consented usability research, not for capturing input
+from other apps.
