@@ -1,67 +1,84 @@
-# SMS Backup
+# Personal Trackers
 
-A minimal personal Android app that captures incoming SMS messages and stores
-them locally in a Room (SQLite) database. Intended as a backup of *your own*
+A multi-module Android Studio project hosting personal-use, on-device data
+capture tools. Each module is its own installable APK, but they share a
+single Gradle build, version catalog and CI workflow.
+
+## Modules
+
+### `:app` — SMS Backup
+
+A minimal personal app that captures incoming SMS messages and stores them
+locally in a Room (SQLite) database. Intended as a backup of *your own*
 incoming messages on *your own* device, before being synced to *your own*
 private server.
 
-## Features
-
 - `BroadcastReceiver` for `android.provider.Telephony.SMS_RECEIVED`
-- Extracts sender phone number, message body (multi-part messages joined), and
-  receive timestamp
-- Persists messages locally with Room (SQLite)
-- Runtime permission flow for `RECEIVE_SMS` and `READ_SMS`
-- Simple Jetpack Compose UI listing the most recent backed-up messages
+- Extracts sender phone number, message body (multi-part messages joined),
+  and receive timestamp
+- Persists messages locally with Room
+- Runtime permission flow for `RECEIVE_SMS` / `READ_SMS`
+- Compose UI listing the most recent backed-up messages
+
+### `:foreground-app-tracker` — UsageStatsManager session log
+
+Aggregates which apps are in the foreground and for how long, by walking
+the events stream from `UsageStatsManager.queryEvents()`. Sessions are
+persisted locally as `(packageName, startedAt, endedAt, durationMillis)`
+rows — no AccessibilityService, no content capture from other apps.
+
+- `UsageStatsSync` walks `ACTIVITY_RESUMED` / `ACTIVITY_PAUSED` /
+  `ACTIVITY_STOPPED` and emits one closed `AppUsageSession` per pair
+- App labels are resolved at sync time via `PackageManager`
+- Periodic `UsageSyncWorker` (15-min cadence, 30-min window) runs via
+  WorkManager so the table grows even when the user doesn't open the app
+- "Sync now (last 7 days)" button does a one-shot catch-up sync; "Clear"
+  drops every row
+- Aggregate query groups sessions by package and orders by total duration
+
+`PACKAGE_USAGE_STATS` is a system-controlled appop — the user must enable
+"Foreground App Tracker" inside *Settings → Apps → Special access →
+Usage access*. The activity has a button that jumps directly there.
 
 ## Project layout
 
 ```
-app/
-  src/main/
-    AndroidManifest.xml
-    java/com/pavel/smsbackup/
-      MainActivity.kt           # Compose UI + runtime permission flow
-      SmsBackupApp.kt           # Application class, exposes the database
-      data/
-        SmsMessageEntity.kt     # @Entity row stored in SQLite
-        SmsMessageDao.kt        # Insert / query helpers
-        AppDatabase.kt          # Room database + singleton accessor
-      receiver/
-        SmsReceiver.kt          # BroadcastReceiver for SMS_RECEIVED
+app/                            # :app  — SMS Backup
+  src/main/java/com/pavel/smsbackup/
+    MainActivity.kt
+    SmsBackupApp.kt
+    data/{SmsMessageEntity,SmsMessageDao,AppDatabase}.kt
+    receiver/SmsReceiver.kt
+
+foreground-app-tracker/         # :foreground-app-tracker  — UsageStatsManager
+  src/main/java/com/pavel/foregroundapptracker/
+    MainActivity.kt
+    ForegroundAppTrackerApp.kt
+    UsageAccess.kt              # PACKAGE_USAGE_STATS appop check
+    UsageStatsSync.kt           # queryEvents → sessions → Room
+    worker/UsageSyncWorker.kt   # WorkManager periodic sync
+    data/{AppUsageSession,AppUsageDao,TrackerDatabase}.kt
 ```
 
 ## Build
 
-Open the project in Android Studio (Hedgehog or newer), let Gradle sync, then
-*Run > app*.
-
-From the command line (requires the Android SDK and `local.properties` with
-`sdk.dir`):
-
 ```bash
-./gradlew :app:assembleDebug
-```
-
-Install onto a connected device or emulator:
-
-```bash
-./gradlew :app:installDebug
+./gradlew assembleDebug                              # all modules
+./gradlew :app:installDebug                          # SMS Backup
+./gradlew :foreground-app-tracker:installDebug       # Foreground App Tracker
 ```
 
 ## Permissions
 
-The app requests `RECEIVE_SMS` (and `READ_SMS` so initial state can be read)
-at runtime. Both must be granted for the receiver to actually deliver new
-messages — Android silently drops `SMS_RECEIVED` broadcasts to apps without
-the permission.
+| Module                     | Permission             | How it's granted                                                   |
+|----------------------------|------------------------|--------------------------------------------------------------------|
+| `:app`                     | `RECEIVE_SMS`, `READ_SMS` | Runtime dialog (`ActivityResultContracts`)                      |
+| `:foreground-app-tracker`  | `PACKAGE_USAGE_STATS`  | User toggles "Usage access" in Settings (in-app deep link button)  |
 
 ## Privacy / scope
 
-The app only persists messages received *after* permission is granted, on the
-device it is installed on. Nothing is uploaded by this code. Sync to a private
-server is intentionally left out of this initial scaffold; add an outbound
-worker (e.g. `WorkManager` + Retrofit) and authenticate against your own
-endpoint when you are ready.
+Each module persists data captured on the device it is installed on.
+Nothing is uploaded by this code.
 
-Do not publish this app or use it to capture messages you do not own.
+`:foreground-app-tracker` only stores app metadata (package name, label,
+start/end timestamps, duration). No window content, no input, no URLs.
